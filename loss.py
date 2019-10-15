@@ -6,13 +6,13 @@ from utils import resize_like
 
 class ReconstructionLoss(keras.Model):
     def __init__(self):
-        super().__init__()
+        super(ReconstructionLoss, self).__init__()
         self.l1 = keras.losses.MAE
 
-    def forward(self, results, targets):
+    def call(self, results, targets):
         loss = 0.
         for i, (res, target) in enumerate(zip(results, targets)):
-            loss += self.l1(res, target)
+            loss += tf.reduce_mean(self.l1(res, target))
         return loss / len(results)
 
 
@@ -28,7 +28,7 @@ class VGGFeature(keras.Model):
         outputs = [vgg.get_layer(name).output for name in layer_names]
         self.style_extractor = tf.keras.Model([vgg.input], outputs)
 
-    def forward(self, x):
+    def call(self, x):
 
         return self.style_extractor(x)
 
@@ -40,12 +40,14 @@ class PerceptualLoss(keras.Model):
 
         self.l1loss = keras.losses.MAE
 
-    def forward(self, vgg_results, vgg_targets):
+    def call(self, vgg_results, vgg_targets):
         loss = 0.
         for i, (vgg_res, vgg_target) in enumerate(
                 zip(vgg_results, vgg_targets)):
             for feat_res, feat_target in zip(vgg_res, vgg_target):
-                loss += self.l1loss(feat_res, feat_target)
+                n, w, h, c = feat_res.shape
+                loss += tf.reduce_mean(self.l1loss(tf.reshape(feat_res, shape=[n, w*h*c]),
+                                                   tf.reshape(feat_target, shape=[n, w*h*c])))
         return loss / len(vgg_results)
 
 
@@ -58,17 +60,20 @@ class StyleLoss(keras.Model):
 
     def gram(self, feature):
         n, h, w, c = feature.shape
-        feature = feature.view(n, h * w, c)
-        gram_mat = tf.scan(lambda x: tf.matmul(x, tf.transpose(x, perm=[0, 2, 1])), feature)
+        feature = tf.reshape(feature, shape=[n, h * w, c])
+        gram_mat = tf.scan(lambda a, x: tf.matmul(tf.transpose(x, perm=[1, 0]), x),
+                           feature,
+                           initializer=tf.zeros([c, c]))
         return gram_mat / (c * h * w)
 
-    def forward(self, vgg_results, vgg_targets):
+    def call(self, vgg_results, vgg_targets):
         loss = 0.
-        for i, (vgg_res, vgg_target) in enumerate(
-                zip(vgg_results, vgg_targets)):
+        for i, (vgg_res, vgg_target) in enumerate(zip(vgg_results, vgg_targets)):
             for feat_res, feat_target in zip(vgg_res, vgg_target):
-                loss += self.l1loss(
-                    self.gram(feat_res), self.gram(feat_target))
+                n, h, w, c = feat_res.shape
+                res_tmp = tf.reshape(self.gram(feat_res), shape=[n, c*c])
+                target_tmp = tf.reshape(self.gram(feat_target), shape=[n, c*c])
+                loss += tf.reduce_mean(self.l1loss(res_tmp, target_tmp))
         return loss / len(vgg_results)
 
 
@@ -80,20 +85,19 @@ class TotalVariationLoss(keras.Model):
 
         kernel = tf.constant([[0, 1, 0],
                               [1, -2, 0],
-                              [0, 0, 0]])
+                              [0, 0, 0]], dtype=tf.float32)
         kernel = tf.expand_dims(tf.expand_dims(kernel, -1), 0)
 
-        kernel = tf.concat([kernel] * c_img, dim=0)
-        self.register_buffer('kernel', kernel)
+        self.kernel = tf.concat([kernel] * c_img, axis=-1)
 
     def gradient(self, x):
-        return tf.nn.conv2d(x, filters=self.kernel, strides=1, padding=1)
+        return tf.nn.conv2d(x, filters=self.kernel, strides=1, padding='SAME')
 
-    def forward(self, results, mask):
+    def call(self, results, mask):
         loss = 0.
         for i, res in enumerate(results):
             grad = self.gradient(res) * resize_like(mask, res)
-            loss += tf.math.mean(tf.math.abs(grad))
+            loss += tf.reduce_mean(tf.math.abs(grad))
         return loss / len(results)
 
 
@@ -119,7 +123,7 @@ class InpaintLoss(keras.Model):
         self.perceptual_loss = PerceptualLoss()
         self.tv_loss = TotalVariationLoss(c_img)
 
-    def forward(self, results, target, mask):
+    def call(self, results, target, mask):
 
         targets = [resize_like(target, res) for res in results]
 
@@ -134,7 +138,7 @@ class InpaintLoss(keras.Model):
 
             loss_struct = self.reconstruction_loss(struct_r, struct_t) * self.w_l1
 
-            loss_list['reconstruction_loss'] = loss_struct.item()
+            loss_list['reconstruction_loss'] = loss_struct.numpy()
 
         if len(self.l_text) > 0:
 
@@ -150,9 +154,9 @@ class InpaintLoss(keras.Model):
 
             loss_text = loss_style + loss_percep + loss_tv
             loss_list.update({
-                'perceptual_loss': loss_percep.item(),
-                'style_loss': loss_style.item(),
-                'total_variation_loss': loss_tv.item()
+                'perceptual_loss': loss_percep.numpy(),
+                'style_loss': loss_style.numpy(),
+                'total_variation_loss': loss_tv.numpy()
             })
 
         loss_total = loss_struct + loss_text

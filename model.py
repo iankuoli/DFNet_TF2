@@ -5,9 +5,10 @@ import cv2
 from utils import resize_like
 from loss import *
 
-def get_norm(name, out_channels):
+
+def get_norm(name):
     if name == 'batch':
-        norm = keras.layers.BatchNormalization(out_channels)
+        norm = keras.layers.BatchNormalization()
     # elif name == 'instance':
     #   norm = nn.InstanceNorm2d(out_channels)
     else:
@@ -17,15 +18,15 @@ def get_norm(name, out_channels):
 
 def get_activation(name):
     if name == 'relu':
-        activation = keras.layers.ReLU
+        activation = keras.layers.ReLU()
     elif name == 'elu':
-        activation = keras.layers.ELU
+        activation = keras.layers.ELU()
     elif name == 'leaky_relu':
         activation = keras.layers.LeakyReLU(alpha=0.2)
     elif name == 'tanh':
-        activation = keras.activations.tanh
+        activation = keras.layers.Activation('tanh')
     elif name == 'sigmoid':
-        activation = keras.activations.sigmoid
+        activation = keras.layers.Activation('sigmoid')
     else:
         activation = None
     return activation
@@ -36,16 +37,18 @@ class Conv2dSame(keras.Model):
     def __init__(self, out_channels, kernel_size, stride):
         super(Conv2dSame, self).__init__()
 
-        padding = self.conv_same_pad(kernel_size, stride)
+        # padding = self.conv_same_pad(kernel_size, stride)
 
-        if type(padding) is not tuple:
-            self.conv = keras.layers.Conv2D(filters=out_channels, kernel_size=kernel_size, strides=stride,
-                                               padding=padding)
-        else:
-            self.conv = keras.Sequential(
-                [keras.layers.ZeroPadding2D(padding*2),
-                 keras.layers.Conv2D(filters=out_channels, kernel_size=kernel_size, strides=stride, padding=0)]
-            )
+        self.conv = keras.layers.Conv2D(filters=out_channels, kernel_size=kernel_size, strides=stride, padding="same")
+
+        #if type(padding) is not tuple:
+        #    self.conv = keras.layers.Conv2D(filters=out_channels, kernel_size=kernel_size, strides=stride,
+        #                                    padding="same")
+        #else:
+        #    self.conv = keras.Sequential(
+        #        [keras.layers.ZeroPadding2D((padding, padding)),
+        #         keras.layers.Conv2D(filters=out_channels, kernel_size=kernel_size, strides=stride, padding="valid")]
+        #    )
 
     @staticmethod
     def conv_same_pad(ksize, stride):
@@ -89,9 +92,7 @@ class UpBlock(keras.Model):
         if mode == 'deconv':
             self.up = ConvTranspose2dSame(channel, kernel_size, stride=scale)
         else:
-            def upsample(x):
-                return keras.layers.UpSampling2D(size=scale, interpolation=mode)
-            self.up = upsample
+            self.up = keras.layers.UpSampling2D(size=scale, interpolation=mode)
 
     def call(self, x):
         return self.up(x)
@@ -109,7 +110,7 @@ class EncodeBlock(keras.Model):
         layers = [Conv2dSame(self.c_out, kernel_size, stride)]
 
         if normalization:
-            layers.append(get_norm(normalization, self.c_out))
+            layers.append(get_norm(normalization))
         if activation:
             layers.append(get_activation(activation))
         self.encode = keras.Sequential(layers)
@@ -132,10 +133,9 @@ class DecodeBlock(keras.Model):
         self.up = UpBlock(mode, scale, channel=c_from_up, kernel_size=scale)
 
         layers = []
-        layers.append(
-            Conv2dSame(self.c_in, self.c_out, kernel_size, stride=1))
+        layers.append(Conv2dSame(self.c_out, kernel_size, stride=1))
         if normalization:
-            layers.append(get_norm(normalization, self.c_out))
+            layers.append(get_norm(normalization))
         if activation:
             layers.append(get_activation(activation))
 
@@ -144,8 +144,8 @@ class DecodeBlock(keras.Model):
     def call(self, x, concat=None):
         out = self.up(x)
         if self.c_from_down > 0:
-            out = tf.concat([out, concat], dim=-1)   # TensorFlow is channel-last
-            # out = torch.cat([out, concat], dim=1)  # PyTorch is channel-first
+            out = tf.concat([out, concat], axis=-1)   # TensorFlow is channel-last
+            # out = torch.cat([out, concat], axis=1)  # PyTorch is channel-first
         out = self.decode(out)
         return out
 
@@ -157,10 +157,10 @@ class BlendBlock(keras.Model):
         c_mid = max(c_in // 2, 32)
         self.blend = keras.Sequential(
             [Conv2dSame(c_mid, 1, 1),
-             get_norm(norm, c_mid),
+             get_norm(norm),
              get_activation(act),
              Conv2dSame(c_out, ksize_mid, 1),
-             get_norm(norm, c_out),
+             get_norm(norm),
              get_activation(act),
              Conv2dSame(c_out, 1, 1),
              get_activation('sigmoid')])
@@ -182,7 +182,7 @@ class FusionBlock(keras.Model):
     def call(self, img_miss, feat_de):
         img_miss = resize_like(img_miss, feat_de)
         raw = self.map2img(feat_de)
-        alpha = self.blend(tf.concat([img_miss, raw], dim=-1))
+        alpha = self.blend(tf.concat([img_miss, raw], axis=-1))
         result = alpha * raw + (1 - alpha) * img_miss
         return result, alpha, raw
 
@@ -228,15 +228,13 @@ class DFNet(keras.Model):
                                        scale=2, normalization=norm, activation=act_de))
             if layer_idx in blend_layers:
                 self.fuse.append(FusionBlock(c_alpha))
-            else:
-                self.fuse.append(None)
 
-        if len(self.fuse) > 0:
-            self.fuse = keras.Sequential(self.fuse)
+        #if len(self.fuse) > 0:
+        #    self.fuse = keras.Sequential(self.fuse)
 
     def call(self, masked_img, mask):
 
-        out = tf.concat([masked_img, mask], dim=-1)
+        out = tf.concat([masked_img, mask], axis=-1)
 
         out_en = [out]
         for encode in self.en:

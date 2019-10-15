@@ -31,11 +31,11 @@ class Dataset(object):
         valid_img_list = []
         with open(train_flist_path, 'r', encoding='UTF-8') as f:
             for line in f:
-                train_img_list.append(cv2.imread(line.strip()))
+                train_img_list.append(cv2.imread(line.strip()).astype(float))
 
         with open(valid_flist_path, 'r', encoding='UTF-8') as f:
             for line in f:
-                valid_img_list.append(cv2.imread(line.strip()))
+                valid_img_list.append(cv2.imread(line.strip()).astype(float))
 
         self.train_data = tf.data.Dataset(train_img_list).repeat().shuffle(5000)
         self.valid_data = tf.data.Dataset(valid_img_list)
@@ -49,19 +49,20 @@ class Dataset(object):
     def load_mat(self, train_mat_path, valid_mat_path):
 
         train = loadmat(train_mat_path)
-        test = loadmat(valid_mat_path)
+        valid = loadmat(valid_mat_path)
 
         # Change format
         x_train, y_train = self.change_format(train)
-        x_valid, y_valid = self.change_format(test)
+        x_valid, y_valid = self.change_format(valid)
 
-        x_train, x_valid = data_normalize(x_train, x_valid)
-        y_train, y_valid = tf.argmax(y_train, 1), tf.argmax(y_valid, 1)
+        # x_train, x_valid = data_normalize(x_train, x_valid)
+        # y_train, y_valid = tf.argmax(y_train, 1), tf.argmax(y_valid, 1)
 
         # Use tf.data API to shuffle and batch data.
-        train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+        train_data = tf.data.Dataset.from_tensor_slices(x_train.astype(np.float32))
 
         self.train_data = train_data.repeat().shuffle(5000)
+        self.valid_data = tf.data.Dataset.from_tensor_slices(x_valid.astype(np.float32))
 
         self.pre_process()
 

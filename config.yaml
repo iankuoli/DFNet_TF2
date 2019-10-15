@@ -1,4 +1,5 @@
-input_size: [512, 512]
+# img_shape: [512, 512, 3]
+img_shape: [32, 32, 3]
 batch_size_train: 6
 batch_size_infer: 20
 
@@ -13,9 +14,17 @@ model:
   norm: 'batch'
   act_en: 'relu'
   act_de: 'leaky_relu'
-  en_ksize: [7, 5, 5, 3, 3, 3, 3, 3]
-  de_ksize: [3, 3, 3, 3, 3, 3, 3, 3]
-  blend_layers: [0, 1, 2, 3, 4, 5]
+
+  # ----- for img shape = (32, 32, 3) -----
+  en_ksize: [3, 3, 3, 3]
+  de_ksize: [3, 3, 3, 3]
+  blend_layers: [0, 1, 2, 3]
+  texture_layers: [0, 1]
+
+  # ----- for img shape = (512, 512, 3) -----
+  # en_ksize: [7, 5, 5, 3, 3, 3, 3, 3]
+  # de_ksize: [3, 3, 3, 3, 3, 3, 3, 3]
+  # blend_layers: [0, 1, 2, 3, 4, 5]
 
 optimizer:
   name: 'Adam'
@@ -27,6 +36,14 @@ iter_per_epoch: 37500
 lr_decay_epoch: 5
 lr_decay_ratio: 0.1
 
+mask:
+  vertical_margin: 0
+  horizontal_margin: 0
+  max_vertex: 8
+  max_angle: 4.0 #pi
+  max_length: 40
+  max_brush_width: 10
+
 loss:
   c_img: 3
   w_l1: 6.
@@ -37,11 +54,14 @@ loss:
   texture_layers: [0, 1, 2]
 
 data:
-  dataset: 'celeba'  # 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'cityscapes'
+  dataset: 'svhn' # 'celeba', 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'cityscapes'
   mask_dataset: 'irrmask'
   random_crop: False
   mask_from_file: False
   data_flist:
+    svhn: [
+      '~/Dataset/SVHN/train_32x32.mat',
+      '~/Dataset/SVHN/test_32x32.mat']
     # https://github.com/JiahuiYu/progressive_growing_of_gans_tf
     celebahq: [
       'data/celeba_hq/train_shuffled.flist',

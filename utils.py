@@ -1,13 +1,14 @@
 from pathlib import Path
 
 import cv2
-import torch.nn.functional as F
+import tensorflow as tf
 from tqdm import tqdm
 import numpy as np
 
 
 def resize_like(x, target, mode='bilinear'):
-    return F.interpolate(x, target.shape[-2:], mode=mode, align_corners=False)
+    a = tf.image.resize(x, size=target.shape[1:3], method=mode)
+    return a
 
 
 def list2nparray(lst, dtype=None):

@@ -1,5 +1,3 @@
-import numpy as np
-import tensorflow as tf
 import pandas as pd
 from tqdm import tqdm
 from os.path import expanduser
@@ -24,9 +22,13 @@ config = Config("config.yaml")
 # 2. load images without masks, generating masks on-the-fly
 # ----------------------------------------------------------------------------------------------------------------------
 imgs = Dataset(config.batch_size_train, config.batch_size_infer)
-imgs.load_from_flist(expanduser(config.data.data_flist.celeba[0]),
-                     expanduser(config.data.data_flist.celeba[1]))
 
+if config.data.data_flist.svhn[0].split(".")[1] == "flist":
+    imgs.load_from_flist(expanduser(config.data.data_flist.svhn[0]),
+                         expanduser(config.data.data_flist.svhn[1]))
+elif config.data.data_flist.svhn[0].split(".")[1] == "mat":
+    imgs.load_mat(expanduser(config.data.data_flist.svhn[0]),
+                  expanduser(config.data.data_flist.svhn[1]))
 
 #
 # Create model
@@ -36,7 +38,10 @@ imgs.load_from_flist(expanduser(config.data.data_flist.celeba[0]),
 optimizer = tf.keras.optimizers.Adam(1e-3)
 
 # train the model
-model = DFNet()
+
+model = DFNet(en_ksize=config.model.en_ksize,
+              de_ksize=config.model.de_ksize,
+              blend_layers=config.model.blend_layers)
 
 
 #
@@ -57,7 +62,9 @@ num_itr_per_batch_valid = int(imgs.valid_size / config.batch_size_infer)
 # exampled data for plotting results
 example_data = next(iter(imgs.valid_data))
 
-loss_function = InpaintLoss(w_l1=config.w_l1, w_percep=config.w_percep, w_style=config.w_style, w_tv=config.w_tv)
+loss_function = InpaintLoss(structure_layers=config.model.blend_layers, texture_layers=config.model.texture_layers,
+                            w_l1=config.loss.w_l1, w_percep=config.loss.w_percep,
+                            w_style=config.loss.w_style, w_tv=config.loss.w_tv)
 
 
 def compute_gradients(targets, model):
@@ -68,7 +75,9 @@ def compute_gradients(targets, model):
 
 def compute_loss(targets):
     # image masking
-    masked_imgs, mask = mask_imgs(targets)
+    masked_imgs, mask = mask_imgs(targets, config.img_shape,
+                                  config.mask.max_vertex, config.mask.max_angle,
+                                  config.mask.max_length, config.mask.max_brush_width)
 
     loss = 0
     loss_list = {'reconstruction_loss': 0.,
@@ -76,21 +85,9 @@ def compute_loss(targets):
                  'style_loss': 0.,
                  'total_variation_loss': 0.}
 
-    for masked_img, target in zip(masked_imgs, targets):
-        results, alphas, raws = model(masked_img, mask)
-        single_loss, single_loss_list = loss_function(results, target)
-        loss += single_loss
-        loss_list['reconstruction_loss'] += single_loss_list['reconstruction_loss']
-        loss_list['perceptual_loss'] += single_loss_list['perceptual_loss']
-        loss_list['style_loss'] += single_loss_list['style_loss']
-        loss_list['total_variation_loss'] += single_loss_list['total_variation_loss']
-
-    # Calculate the mean
-    loss /= config.batch_size
-    loss_list['reconstruction_loss'] /= config.batch_size
-    loss_list['perceptual_loss'] /= config.batch_size
-    loss_list['style_loss'] /= config.batch_size
-    loss_list['total_variation_loss'] /= config.batch_size
+    masks = tf.tile(tf.expand_dims(mask, 0), [config.batch_size_train, 1, 1, 1])
+    results, alphas, raws = model(masked_imgs, masks)
+    loss, loss_list = loss_function(results, targets, masks)
 
     return loss, loss_list
 
@@ -124,7 +121,9 @@ for epoch in range(n_epochs):
         )
     )
 
-    masked_imgs, mask = mask_imgs(example_data)
+    masked_imgs, mask = mask_imgs(example_data, config.img_shape,
+                                  config.mask.max_vertex, config.mask.max_angle,
+                                  config.mask.max_length, config.mask.max_brush_width)
     plot_reconstruction(model, example_data, masked_imgs, mask, example_data.shape[0])
 
 
