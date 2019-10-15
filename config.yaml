@@ -1,0 +1,69 @@
+input_size: [512, 512]
+batch_size_train: 6
+batch_size_infer: 20
+
+device:
+- {num: 1, gpu: 8, cpu: 16, memory: 51200}
+
+model:
+  c_img: 3
+  c_mask: 1
+  c_alpha: 3
+  mode: 'nearest'
+  norm: 'batch'
+  act_en: 'relu'
+  act_de: 'leaky_relu'
+  en_ksize: [7, 5, 5, 3, 3, 3, 3, 3]
+  de_ksize: [3, 3, 3, 3, 3, 3, 3, 3]
+  blend_layers: [0, 1, 2, 3, 4, 5]
+
+optimizer:
+  name: 'Adam'
+  args:
+    lr: 0.0002
+
+epoch: 20
+iter_per_epoch: 37500
+lr_decay_epoch: 5
+lr_decay_ratio: 0.1
+
+loss:
+  c_img: 3
+  w_l1: 6.
+  w_percep: 0.1
+  w_style: 240.
+  w_tv: 0.1
+  structure_layers: [0, 1, 2, 3, 4, 5]
+  texture_layers: [0, 1, 2]
+
+data:
+  dataset: 'celeba'  # 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'cityscapes'
+  mask_dataset: 'irrmask'
+  random_crop: False
+  mask_from_file: False
+  data_flist:
+    # https://github.com/JiahuiYu/progressive_growing_of_gans_tf
+    celebahq: [
+      'data/celeba_hq/train_shuffled.flist',
+      'data/celeba_hq/validation_static_view.flist']
+    # http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html, please to use RANDOM_CROP: True
+    celeba: [
+      '~/Dataset/celeba/train_shuffled.flist',
+      '~/Dataset/celeba/validation_static_view.flist']
+    # http://places2.csail.mit.edu/, please download the high-resolution dataset and use RANDOM_CROP: True
+    places2: [
+      '../Data/PlacesData/train_list.txt',
+      '../Data/PlacesData/val_list.txt']
+    # http://www.image-net.org/, please use RANDOM_CROP: True
+    imagenet: [
+      'data/imagenet/train_shuffled.flist',
+      'data/imagenet/validation_static_view.flist']
+    irrmask: [
+      '~/Dataset/celeba/irrmask_flist.txt',
+      '~/Dataset/celeba/irrmask_flist.txt']
+    horse: [
+      '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_train_flist.txt',
+      '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_val_flist.txt']
+    horse_mask: [
+      '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_bbox_train_flist.txt',
+      '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_bbox_val_flist.txt']
