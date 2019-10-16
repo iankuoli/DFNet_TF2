@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from utils import resize_like
+from trainer.utils import resize_like
 
 
 def get_norm(name, out_channels):

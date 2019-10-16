@@ -2,12 +2,12 @@ import pandas as pd
 from tqdm import tqdm
 from os.path import expanduser
 
-from configuration import Config
-from datasets import Dataset
-from model import DFNet
-from loss import InpaintLoss
-from img_mask import mask_imgs
-from plots import *
+from trainer.configuration import Config
+from trainer.datasets import Dataset
+from trainer.model import DFNet
+from trainer.loss import InpaintLoss
+from trainer.img_mask import mask_imgs
+from trainer.plots import *
 
 #
 # Configuration Loading
@@ -21,6 +21,7 @@ config = Config("config.yaml")
 # 1. *.flist is a file that comprises a list of urls each of which links to an image.
 # 2. load images without masks, generating masks on-the-fly
 # ----------------------------------------------------------------------------------------------------------------------
+print("Data Loading ......")
 imgs = Dataset(config.batch_size_train, config.batch_size_infer)
 
 if config.data.data_flist.svhn[0].split(".")[1] == "flist":
@@ -29,12 +30,13 @@ if config.data.data_flist.svhn[0].split(".")[1] == "flist":
 elif config.data.data_flist.svhn[0].split(".")[1] == "mat":
     imgs.load_mat(expanduser(config.data.data_flist.svhn[0]),
                   expanduser(config.data.data_flist.svhn[1]))
+print("Data loading is finished.")
+
 
 #
 # Create model
 # ----------------------------------------------------------------------------------------------------------------------
 
-# the optimizer for the model
 optimizer = tf.keras.optimizers.Adam(1e-3)
 
 # train the model
@@ -42,6 +44,7 @@ optimizer = tf.keras.optimizers.Adam(1e-3)
 model = DFNet(en_ksize=config.model.en_ksize,
               de_ksize=config.model.de_ksize,
               blend_layers=config.model.blend_layers)
+print("DFNet declaration is finished.")
 
 
 #
@@ -78,12 +81,6 @@ def compute_loss(targets):
     masked_imgs, mask = mask_imgs(targets, config.img_shape,
                                   config.mask.max_vertex, config.mask.max_angle,
                                   config.mask.max_length, config.mask.max_brush_width)
-
-    loss = 0
-    loss_list = {'reconstruction_loss': 0.,
-                 'perceptual_loss': 0.,
-                 'style_loss': 0.,
-                 'total_variation_loss': 0.}
 
     masks = tf.tile(tf.expand_dims(mask, 0), [config.batch_size_train, 1, 1, 1])
     results, alphas, raws = model(masked_imgs, masks)

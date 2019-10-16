@@ -1,9 +1,4 @@
-import tensorflow as tf
-from tensorflow import keras
-import cv2
-
-from utils import resize_like
-from loss import *
+from trainer.loss import *
 
 
 def get_norm(name):

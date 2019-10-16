@@ -7,19 +7,16 @@ from pathlib import Path
 import argparse
 import cv2
 import numpy as np
+import torch
 import tqdm
-import tensorflow as tf
 
-from utils import list2nparray, gen_miss, merge_imgs
-from model_torch import DFNet
+from trainer.utils import list2nparray, gen_miss, merge_imgs
+from trainer.model_torch import DFNet
 
 
 class Tester:
 
     def __init__(self, model_path, input_size, batch_size):
-
-        self.model = None
-
         self.model_path = model_path
         self._input_size = input_size
         self.batch_size = batch_size
@@ -35,8 +32,18 @@ class Tester:
             return (512, 512)
 
     def init_model(self, path):
-        self.model = DFNet()
-        # load model from ${path}
+        if torch.cuda.is_available():
+            self.device = torch.device('cuda')
+            print('Using gpu.')
+        else:
+            self.device = torch.device('cpu')
+            print('Using cpu.')
+
+        self.model = DFNet().to(self.device)
+        checkpoint = torch.load(path, map_location=self.device)
+        self.model.load_state_dict(checkpoint)   # for model saving
+        self.model.eval()    # set the model to evaluation mode
+
         print('Model %s loaded.' % path)
 
     def get_name(self, path):
@@ -62,14 +69,19 @@ class Tester:
 
     def inpaint_batch(self, imgs, masks):
         """Assume color channel is BGR and input is NWHC np.uint8."""
-        imgs = tf.math.divide(tf.convert_to_tensor(imgs, dtype=tf.float32), 255.)
-        masks = tf.math.divide(tf.convert_to_tensor(masks, dtype=tf.float32), 255.)
-        imgs_miss = tf.math.multiply(imgs, masks)
+        imgs = np.transpose(imgs, [0, 3, 1, 2])
+        masks = np.transpose(masks, [0, 3, 1, 2])
 
+        imgs = torch.from_numpy(imgs).to(self.device)
+        masks = torch.from_numpy(masks).to(self.device)
+        imgs = imgs.float().div(255)
+        masks = masks.float().div(255)
+        imgs_miss = imgs * masks
         results = self.model(imgs_miss, masks)
         if type(results) is list:
             results = results[0]
-        results = tf.math.multiply(results, 255.).numpy()
+        results = results.mul(255).byte().data.cpu().numpy()
+        results = np.transpose(results, [0, 2, 3, 1])
         return results
 
     def _process_file(self, output, img_path, mask_path):
@@ -145,17 +157,25 @@ class Tester:
                     _buffer[key] = list2nparray(_buffer[key])
             yield _buffer
 
+    def to_numpy(self, tensor):
+        tensor = tensor.mul(255).byte().data.cpu().numpy()
+        tensor = np.transpose(tensor, [0, 2, 3, 1])
+        return tensor
+
     def process_batch(self, batch, output):
-        imgs = tf.math.divide(tf.convert_to_tensor(batch['img'], dtype=tf.float32), 255.)
-        masks = tf.math.divide(tf.convert_to_tensor(batch['mask'], dtype=tf.float32), 255.)
-        imgs_miss = tf.math.multiply(imgs, masks)
+        imgs = torch.from_numpy(batch['img']).to(self.device)
+        masks = torch.from_numpy(batch['mask']).to(self.device)
+        imgs = imgs.float().div(255)
+        masks = masks.float().div(255)
+        imgs_miss = imgs * masks
 
         result, alpha, raw = self.model(imgs_miss, masks)
         result, alpha, raw = result[0], alpha[0], raw[0]
-        result = tf.math.multiply(imgs, masks) + tf.math.multiply(result, (1 - masks))
-        result = tf.math.multiply(result, 255.).numpy()
-        alpha = tf.math.multiply(alpha, 255.).numpy()
-        raw = tf.math.multiply(raw, 255.).numpy()
+        result = imgs * masks + result * (1 - masks)
+
+        result = self.to_numpy(result)
+        alpha = self.to_numpy(alpha)
+        raw = self.to_numpy(raw)
 
         for i in range(result.shape[0]):
             cv2.imwrite(str(batch['result_path'][i]), result[i])

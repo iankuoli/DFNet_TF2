@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torchvision import models
 
-from utils import resize_like
+from trainer.utils import resize_like
 
 
 class ReconstructionLoss(nn.L1Loss):
