@@ -1,8 +1,7 @@
 import numpy as np
 import tensorflow as tf
-import os
-import urllib.request
 from scipy.io import loadmat
+import urllib
 import cv2
 
 
@@ -26,25 +25,34 @@ class Dataset(object):
         self.valid_size = 0
         self.input_dim = 0
 
-    def load_from_flist(self, train_flist_path, valid_flist_path):
+    def load_from_flist(self, train_flist_path, valid_flist_path, output_wh, is_url=False):
         train_img_list = []
         valid_img_list = []
+
+        def read(line, is_url):
+            if is_url:
+                f = urllib.request.urlopen(line.strip())
+                return np.asarray(bytearray(f.read()), dtype="float32")
+            else:
+                return cv2.imread(line.strip()).astype(np.float32)
+
         with open(train_flist_path, 'r', encoding='UTF-8') as f:
             for line in f:
-                train_img_list.append(cv2.imread(line.strip()).astype(float))
+                img = cv2.resize(read(line, is_url), output_wh, interpolation=cv2.INTER_NEAREST)
+                train_img_list.append(img)
 
         with open(valid_flist_path, 'r', encoding='UTF-8') as f:
             for line in f:
-                valid_img_list.append(cv2.imread(line.strip()).astype(float))
+                img = cv2.resize(read(line, is_url), output_wh, interpolation=cv2.INTER_NEAREST)
+                valid_img_list.append(img)
 
-        self.train_data = tf.data.Dataset(train_img_list).repeat().shuffle(5000)
-        self.valid_data = tf.data.Dataset(valid_img_list)
-
-        self.pre_process()
-        
         self.train_size = len(train_img_list)
         self.valid_size = len(valid_img_list)
         self.input_dim = train_img_list[0].shape
+
+        self.train_data = tf.data.Dataset.from_tensor_slices(train_img_list).repeat().shuffle(min(500, self.train_size))
+        self.valid_data = tf.data.Dataset.from_tensor_slices(valid_img_list)
+        self.pre_process()
 
     def load_mat(self, train_mat_path, valid_mat_path):
 
