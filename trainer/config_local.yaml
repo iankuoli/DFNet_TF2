@@ -1,0 +1,90 @@
+img_shape: [512, 512, 3]
+# img_shape: [32, 32, 3]
+batch_size_train: 6
+batch_size_infer: 20
+is_url: False
+
+device:
+- {num: 1, gpu: 8, cpu: 16, memory: 51200}
+
+model:
+  save_path: 'ckpt/DFNet_ver1'
+  c_img: 3
+  c_mask: 1
+  c_alpha: 3
+  mode: 'nearest'
+  norm: 'batch'
+  act_en: 'relu'
+  act_de: 'leaky_relu'
+
+  # ----- for img shape = (32, 32, 3) -----
+  # en_ksize: [3, 3, 3, 3]
+  # de_ksize: [3, 3, 3, 3]
+  # blend_layers: [0, 1, 2, 3]
+
+  # ----- for img shape = (512, 512, 3) -----
+  en_ksize: [7, 5, 5, 3, 3, 3, 3, 3]
+  de_ksize: [3, 3, 3, 3, 3, 3, 3, 3]
+  blend_layers: [0, 1, 2, 3, 4, 5]
+
+optimizer:
+  name: 'Adam'
+  args:
+    lr: 0.0002
+
+epoch: 20
+iter_per_epoch: 37500
+lr_decay_epoch: 5
+lr_decay_ratio: 0.1
+
+mask:
+  vertical_margin: 0
+  horizontal_margin: 0
+  max_vertex: 8
+  max_angle: 4.0 #pi
+  max_length: 40
+  max_brush_width: 10
+
+loss:
+  c_img: 3
+  w_l1: 6.
+  w_percep: 0.1
+  w_style: 240.
+  w_tv: 0.1
+  structure_layers: [0, 1, 2, 3, 4, 5]  # the index is w.r.t. blend_layers
+  texture_layers: [0, 1, 2]             # the index is w.r.t. blend_layers
+
+data:
+  dataset: 'celeba' # 'svhn', 'tmnist', 'dtd', 'places2', 'celeba', 'imagenet', 'cityscapes'
+  mask_dataset: 'irrmask'
+  random_crop: False
+  mask_from_file: False
+  data_flist:
+    svhn: [
+      'datasets_path/svhn_train_32x32.mat',
+      'datasets_path/svhn_test_32x32.mat']
+      # https://github.com/JiahuiYu/progressive_growing_of_gans_tf
+      celebahq: [
+        'datasets_path/celebahq_train_local.flist',
+        'datasets_path/celebahq_train_local.flist']
+      # http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html, please to use RANDOM_CROP: True
+      celeba: [
+        'datasets_path/celeba_train_local.flist',
+        'datasets_path/celeba_train_local.flist']
+      # http://places2.csail.mit.edu/, please download the high-resolution dataset and use RANDOM_CROP: True
+      places2: [
+        'gs://inpaint-dataset/PlacesData/train_list.txt',
+        'gs://inpaint-dataset/PlacesData/val_list.txt']
+      # http://www.image-net.org/, please use RANDOM_CROP: True
+      imagenet: [
+        'datasets_path/imagenet_train_local.flist',
+        'datasets_path/imagenet_valid_local.flist']
+      irrmask: [
+        'datasets_path/irrmask_train_local.flist',
+        'datasets_path/irrmask_valid_local.flist']
+      horse: [
+        '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_train_flist.txt',
+        '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_val_flist.txt']
+      horse_mask: [
+        '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_bbox_train_flist.txt',
+        '/unsullied/sharefs/linhangyu/Inpainting/Data/VOCData/voc_horse_bbox_val_flist.txt']
