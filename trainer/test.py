@@ -11,7 +11,7 @@ import tqdm
 import tensorflow as tf
 
 from trainer.utils import list2nparray, gen_miss, merge_imgs
-from trainer.model_torch import DFNet
+from trainer.model import DFNet
 
 
 class Tester:

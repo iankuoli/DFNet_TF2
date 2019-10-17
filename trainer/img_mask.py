@@ -37,7 +37,7 @@ def random_ff_mask(img_shape, max_vertex, max_angle, max_length, max_brush_width
         return mask.reshape(mask.shape+(1,)).astype(np.float32)
 
     mask = tf.py_function(np_mask, inp=[], Tout=tf.float32)
-    tf.expand_dims(mask, 0)
+    mask = tf.expand_dims(mask, 0)
 
     return mask
 

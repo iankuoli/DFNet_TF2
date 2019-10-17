@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 
-from trainer.utils import resize_like
+from utils import resize_like
 
 
 class ReconstructionLoss(keras.Model):

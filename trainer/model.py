@@ -1,4 +1,4 @@
-from trainer.loss import *
+from loss import *
 
 
 def get_norm(name):
@@ -187,17 +187,18 @@ class DFNet(keras.Model):
     def __init__(self, c_img=3, c_mask=1, c_alpha=3,
                  mode='nearest', norm='batch', act_en='relu', act_de='leaky_relu',
                  en_ksize=[7, 5, 5, 3, 3, 3, 3, 3], de_ksize=[3]*8,
-                 blend_layers=[0, 1, 2, 3, 4, 5]):
+                 fuse_index=[0, 1, 2, 3, 4, 5]):
         super(DFNet, self).__init__()
 
         c_init = c_img + c_mask
 
         self.n_en = len(en_ksize)
         self.n_de = len(de_ksize)
+        self.fuse_index = fuse_index
 
         assert self.n_en == self.n_de, 'The number layer of Encoder and Decoder must be equal.'
         assert self.n_en >= 1, 'The number layer of Encoder and Decoder must be greater than 1.'
-        assert 0 in blend_layers, 'Layer 0 must be blended.'
+        assert 0 in fuse_index, 'Layer 0 must be blended.'
 
         self.en = []
         c_in = c_init
@@ -221,7 +222,7 @@ class DFNet(keras.Model):
 
             self.de.append(DecodeBlock(c_from_up, c_from_down, c_out, mode, k_de,
                                        scale=2, normalization=norm, activation=act_de))
-            if layer_idx in blend_layers:
+            if layer_idx in fuse_index:
                 self.fuse.append(FusionBlock(c_alpha))
 
         #if len(self.fuse) > 0:
@@ -239,12 +240,24 @@ class DFNet(keras.Model):
         results = []
         alphas = []
         raws = []
-        for i, (decode, fuse) in enumerate(zip(self.de, self.fuse)):
-            out = decode(out, out_en[-i-2])
-            if fuse:
+        
+        for i, decode in enumerate(self.de):
+            out = decode(out, out_en[-i - 2])
+            map_to_fuse = self.n_de - 1 - i
+            if map_to_fuse in self.fuse_index:
+                fuse_index = self.fuse_index.index(map_to_fuse)
+                fuse = self.fuse[fuse_index]
                 result, alpha, raw = fuse(masked_img, out)
                 results.append(result)
                 alphas.append(alpha)
                 raws.append(raw)
+
+        #for i, (decode, fuse) in enumerate(zip(self.de, self.fuse)):
+        #    out = decode(out, out_en[-i-2])
+        #    if fuse:
+        #        result, alpha, raw = fuse(masked_img, out)
+        #        results.append(result)
+        #        alphas.append(alpha)
+        #        raws.append(raw)
 
         return results[::-1], alphas[::-1], raws[::-1]

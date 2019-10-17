@@ -1,19 +1,20 @@
 import pandas as pd
 from tqdm import tqdm
+import os
 from os.path import expanduser
 
-from trainer.configuration import Config
-from trainer.datasets import Dataset
-from trainer.model import DFNet
-from trainer.loss import InpaintLoss
-from trainer.img_mask import mask_imgs
-from trainer.plots import *
+from configuration import Config
+from datasets import Dataset
+from model import DFNet
+from loss import InpaintLoss
+from img_mask import mask_imgs
+from plots import *
 
 #
 # Configuration Loading
 # ----------------------------------------------------------------------------------------------------------------------
-
-config = Config("config.yaml")
+# config = Config(os.path.join(os.getcwd(), "config_local.yaml"))          # config for local env.
+config = Config(os.path.join(os.getcwd(), "config_cloud.yaml"))      # config for cloud env.
 
 
 #
@@ -21,15 +22,17 @@ config = Config("config.yaml")
 # 1. *.flist is a file that comprises a list of urls each of which links to an image.
 # 2. load images without masks, generating masks on-the-fly
 # ----------------------------------------------------------------------------------------------------------------------
-print("Data Loading ......")
+print("Loading Data from %s ......" % expanduser(config.data.data_flist[config.data.dataset][0]))
 imgs = Dataset(config.batch_size_train, config.batch_size_infer)
 
-if config.data.data_flist.svhn[0].split(".")[1] == "flist":
-    imgs.load_from_flist(expanduser(config.data.data_flist.svhn[0]),
-                         expanduser(config.data.data_flist.svhn[1]))
-elif config.data.data_flist.svhn[0].split(".")[1] == "mat":
-    imgs.load_mat(expanduser(config.data.data_flist.svhn[0]),
-                  expanduser(config.data.data_flist.svhn[1]))
+if config.data.data_flist[config.data.dataset][0].split(".")[1] == "flist":
+    imgs.load_from_flist(expanduser(config.data.data_flist[config.data.dataset][0]),
+                         expanduser(config.data.data_flist[config.data.dataset][1]),
+                         tuple(config.img_shape[:2]),
+                         is_url=config.is_url)
+elif config.data.data_flist[config.data.dataset][0].split(".")[1] == "mat":
+    imgs.load_mat(expanduser(config.data.data_flist[config.data.dataset][0]),
+                  expanduser(config.data.data_flist[config.data.dataset][1]))
 print("Data loading is finished.")
 
 
@@ -43,7 +46,7 @@ optimizer = tf.keras.optimizers.Adam(1e-3)
 
 model = DFNet(en_ksize=config.model.en_ksize,
               de_ksize=config.model.de_ksize,
-              blend_layers=config.model.blend_layers)
+              fuse_index=config.model.blend_layers)
 print("DFNet declaration is finished.")
 
 
@@ -65,7 +68,7 @@ num_itr_per_batch_valid = int(imgs.valid_size / config.batch_size_infer)
 # exampled data for plotting results
 example_data = next(iter(imgs.valid_data))
 
-loss_function = InpaintLoss(structure_layers=config.model.blend_layers, texture_layers=config.model.texture_layers,
+loss_function = InpaintLoss(structure_layers=config.model.blend_layers, texture_layers=config.loss.texture_layers,
                             w_l1=config.loss.w_l1, w_percep=config.loss.w_percep,
                             w_style=config.loss.w_style, w_tv=config.loss.w_tv)
 
@@ -82,7 +85,7 @@ def compute_loss(targets):
                                   config.mask.max_vertex, config.mask.max_angle,
                                   config.mask.max_length, config.mask.max_brush_width)
 
-    masks = tf.tile(tf.expand_dims(mask, 0), [config.batch_size_train, 1, 1, 1])
+    masks = tf.tile(mask, [config.batch_size_train, 1, 1, 1])
     results, alphas, raws = model(masked_imgs, masks)
     loss, loss_list = loss_function(results, targets, masks)
 
@@ -123,8 +126,6 @@ for epoch in range(n_epochs):
                                   config.mask.max_length, config.mask.max_brush_width)
     plot_reconstruction(model, example_data, masked_imgs, mask, example_data.shape[0])
 
+    # Save the model into ckpt file
+    model.save_weights(config.model.save_path, save_format='tf')
 
-#
-# Show grid in 2D latent space
-# ----------------------------------------------------------------------------------------------------------------------
-# show_grid_2D(model)
