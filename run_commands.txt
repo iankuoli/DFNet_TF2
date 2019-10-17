@@ -1,0 +1,47 @@
+#
+# Training in local
+# ------------------------------------------------------------------------------------
+
+TRAIN_DATA="~/Dataset/celeba/train.flist"
+EVAL_DATA="~/Dataset/celeba/valid.flist"
+OUTPUT_PATH="$(pwd)/ckpt"
+RUNTIME_VERSION="2.0"
+PYTHON_VERSION="3.7.4"
+
+gcloud ai-platform local train \
+    --module-name trainer.task \
+    --package-path trainer/ \
+    --job-dir OUTPUT_PATH \
+    -- \
+    --train-files $TRAIN_DATA \
+    --eval-files $EVAL_DATA \
+    --train-steps 1000 \
+    --eval-steps 100
+
+
+#
+# Training in local
+# ------------------------------------------------------------------------------------
+
+TRAIN_DATA="gs://inpaint-dataset/celeba/train.flist"
+EVAL_DATA="gs://inpaint-dataset/celeba/valid.flist"
+OUTPUT_PATH="gs://inpaint-dataset/output_models/DFNet_celeba_tf2"
+RUNTIME_VERSION="2.0"
+PYTHON_VERSION="3.5"
+REGION="asia-east1"
+JOB_NAME="DFNet_tf2_v2_GPU"
+
+gcloud ai-platform jobs submit training $JOB_NAME \
+    --module-name trainer.task \
+    --package-path trainer/ \
+    --job-dir $OUTPUT_PATH \
+    --region $REGION \
+    --runtime-version $RUNTIME_VERSION \
+    --python-version $PYTHON_VERSION \
+    --config config.yaml \
+    -- \
+    --train-files $TRAIN_DATA \
+    --eval-files $EVAL_DATA \
+    --train-steps 1000 \
+    --eval-steps 100 \
+    --verbosity DEBUG
