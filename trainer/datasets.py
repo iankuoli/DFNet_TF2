@@ -3,6 +3,7 @@ import tensorflow as tf
 from scipy.io import loadmat
 import urllib
 import cv2
+import os
 
 
 # Convert to float32 and Normalize images value from [0, 255] to [0, 1].
@@ -34,7 +35,7 @@ class Dataset(object):
                 f = urllib.request.urlopen(line.strip())
                 return np.asarray(bytearray(f.read()), dtype="float32")
             else:
-                return cv2.imread(line.strip()).astype(np.float32)
+                return cv2.imread(os.path.expanduser(line.strip())).astype(np.float32)
 
         with open(train_flist_path, 'r', encoding='UTF-8') as f:
             for line in f:
