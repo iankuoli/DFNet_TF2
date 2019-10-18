@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from tqdm import tqdm
 from scipy.io import loadmat
 import urllib
 import cv2
@@ -37,14 +38,16 @@ class Dataset(object):
             else:
                 return cv2.imread(os.path.expanduser(line.strip())).astype(np.float32)
 
+        num_train_files = sum(1 for line in open(train_flist_path, 'r', encoding='UTF-8'))
         with open(train_flist_path, 'r', encoding='UTF-8') as f:
-            for line in f:
-                img = cv2.resize(read(line, is_url), output_wh, interpolation=cv2.INTER_NEAREST)
+            for line in tqdm(f, total=num_train_files):
+                img = cv2.resize(read(line, is_url), output_wh, interpolation=cv2.INTER_LINEAR)
                 train_img_list.append(img)
 
+        num_valid_files = sum(1 for line in open(valid_flist_path, 'r', encoding='UTF-8'))
         with open(valid_flist_path, 'r', encoding='UTF-8') as f:
-            for line in f:
-                img = cv2.resize(read(line, is_url), output_wh, interpolation=cv2.INTER_NEAREST)
+            for line in tqdm(f, total=num_valid_files):
+                img = cv2.resize(read(line, is_url), output_wh, interpolation=cv2.INTER_LINEAR)
                 valid_img_list.append(img)
 
         self.train_size = len(train_img_list)
