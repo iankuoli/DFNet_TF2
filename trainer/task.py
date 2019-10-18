@@ -13,8 +13,8 @@ from plots import *
 #
 # Configuration Loading
 # ----------------------------------------------------------------------------------------------------------------------
-# config = Config(os.path.join(os.getcwd(), "config_local.yaml"))          # config for local env.
-config = Config(os.path.join(os.getcwd(), "config_cloud.yaml"))      # config for cloud env.
+config = Config(os.path.join(os.getcwd(), "config_local.yaml"))          # config for local env.
+# config = Config(os.path.join(os.getcwd(), "config_cloud.yaml"))      # config for cloud env.
 
 
 #
@@ -39,8 +39,14 @@ print("Data loading is finished.")
 #
 # Create model
 # ----------------------------------------------------------------------------------------------------------------------
-
-optimizer = tf.keras.optimizers.Adam(1e-3)
+if config.optimizer == 'Adam':
+    optimizer = tf.keras.optimizers.Adam(config.optimizer.args.lr)
+elif config.optimizer == 'Adagrad':
+    optimizer = tf.keras.optimizers.Adagrad(config.optimizer.args.lr)
+elif config.optimizer == 'RMSprop':
+    optimizer = tf.keras.optimizers.RMSprop(config.optimizer.args.lr)
+else:
+    optimizer = tf.keras.optimizers.SGD(config.optimizer.args.lr)
 
 # train the model
 
@@ -75,17 +81,17 @@ loss_function = InpaintLoss(structure_layers=config.model.blend_layers, texture_
 
 def compute_gradients(targets, model):
     with tf.GradientTape() as tape:
-        loss, loss_list = compute_loss(targets)
+        loss, loss_list = compute_loss(targets, batch_size=config.batch_size_train)
     return tape.gradient(loss, model.trainable_variables)
 
 
-def compute_loss(targets):
+def compute_loss(targets, batch_size):
     # image masking
     masked_imgs, mask = mask_imgs(targets, config.img_shape,
                                   config.mask.max_vertex, config.mask.max_angle,
                                   config.mask.max_length, config.mask.max_brush_width)
 
-    masks = tf.tile(mask, [config.batch_size_train, 1, 1, 1])
+    masks = tf.tile(mask, [batch_size, 1, 1, 1])
     results, alphas, raws = model(masked_imgs, masks)
     loss, loss_list = loss_function(results, targets, masks)
 
@@ -104,7 +110,7 @@ for epoch in range(n_epochs):
     loss_batch = []
     for batch, targets in tqdm(zip(range(num_itr_per_batch_valid), imgs.valid_data), total=num_itr_per_batch_valid):
 
-        loss, loss_list = compute_loss(targets)
+        loss, loss_list = compute_loss(targets, batch_size=config.batch_size_infer)
 
         loss_batch.append(np.array([loss,
                                     loss_list['reconstruction_loss'],
@@ -116,15 +122,16 @@ for epoch in range(n_epochs):
 
     # plot results
     print(
-        "Epoch: {} | recon_loss: {} | latent_loss: {}".format(
-            epoch, losses.recon_loss.values[-1], losses.latent_loss.values[-1]
+        "Epoch: {} | recon_loss: {} | perceptual_loss: {} | style_loss: {} | total_variation_loss: {}".format(
+            epoch, losses.reconstruction_loss.values[-1], losses.perceptual_loss.values[-1],
+            losses.style_loss.values[-1], losses.total_variation_loss.values[-1]
         )
     )
 
     masked_imgs, mask = mask_imgs(example_data, config.img_shape,
                                   config.mask.max_vertex, config.mask.max_angle,
                                   config.mask.max_length, config.mask.max_brush_width)
-    plot_reconstruction(model, example_data, masked_imgs, mask, example_data.shape[0])
+    plot_reconstruction(config.data.dataset, str(epoch), model, example_data, masked_imgs, mask, nex=example_data.shape[0])
 
     # Save the model into ckpt file
     model.save_weights(config.model.save_path, save_format='tf')
