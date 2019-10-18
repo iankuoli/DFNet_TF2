@@ -3,24 +3,22 @@ import tensorflow as tf
 import numpy as np
 
 
-def plot_reconstruction(model, targets, masked_imgs, mask, batch_size, nex=8, zm=2):
+def plot_reconstruction(dataset, epoch, model, targets, masked_imgs, mask, nex=8, zm=2):
 
-    masks = tf.tile(tf.expand_dims(mask, 0), [batch_size, 1, 1, 1])
+    masks = tf.tile(mask, [nex, 1, 1, 1])
     results, alphas, raws = model(masked_imgs, masks)
 
-    fig, axs = plt.subplots(ncols=nex, nrows=3, figsize=(zm * nex, zm * 4))
-    for axi, (dat, lab) in enumerate(
-        zip([targets, results, alphas, raws],
-            ["targets", "results", "alphas", "raws"])
-    ):
+    fig, axs = plt.subplots(ncols=nex, nrows=5, figsize=(zm * nex, zm * 4))
+    for axi, (dat, lab) in enumerate(zip([targets, masked_imgs, results[0], alphas[0], raws[0]],
+                                         ["targets", "inputs", "results", "alphas", "raws"])):
         for ex in range(nex):
-            axs[axi, ex].matshow(
-                dat.numpy()[ex].squeeze(), cmap=plt.get_cmap('Greys'), vmin=0, vmax=1
-            )
+            tmp = dat[ex].numpy().squeeze() / 255.
+            axs[axi, ex].imshow(tmp, cmap=plt.get_cmap('Greys'), vmin=0, vmax=1)
             axs[axi, ex].axes.get_xaxis().set_ticks([])
             axs[axi, ex].axes.get_yaxis().set_ticks([])
         axs[axi, 0].set_ylabel(lab)
 
+    plt.savefig("figs/%s_%s.png" % (dataset, epoch))
     plt.show()
 
 
