@@ -122,6 +122,41 @@ for epoch in range(n_epochs):
         gradients = compute_gradients(targets, model)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
+        if batch % 2 == 0:
+            # test on holdout
+            loss_batch = []
+            for batch_i, targets_i in zip(range(num_itr_per_batch_valid), imgs.valid_data):
+
+                if batch_i > 10:
+                    break
+
+                loss, loss_list = compute_loss(targets_i, batch_size=config.batch_size_infer)
+
+                loss_batch.append(np.array([loss,
+                                            loss_list['reconstruction_loss'],
+                                            loss_list['perceptual_loss'],
+                                            loss_list['style_loss'],
+                                            loss_list['total_variation_loss']]))
+
+            losses.loc[len(losses)] = np.mean(loss_batch, axis=0)
+
+            # plot results
+            print(
+                "Epoch: {} | recon_loss: {} | perceptual_loss: {} | style_loss: {} | total_variation_loss: {}".format(
+                    epoch, losses.reconstruction_loss.values[-1], losses.perceptual_loss.values[-1],
+                    losses.style_loss.values[-1], losses.total_variation_loss.values[-1]
+                )
+            )
+
+            masked_imgs, mask = mask_imgs(example_data, config.img_shape,
+                                          config.mask.max_vertex, config.mask.max_angle,
+                                          config.mask.max_length, config.mask.max_brush_width)
+            plot_reconstruction(config.data.dataset, str(epoch), model, example_data, masked_imgs, mask,
+                                nex=example_data.shape[0])
+
+            # Save the model into ckpt file
+            model.save_weights(config.model.save_path, save_format='tf')
+
     # test on holdout
     loss_batch = []
     for batch, targets in tqdm(zip(range(num_itr_per_batch_valid), imgs.valid_data), total=num_itr_per_batch_valid):

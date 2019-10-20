@@ -6,14 +6,15 @@ Images 1-162770 are training, 162771-182637 are validation, 182638-202599 are te
 import os
 
 environments = ['local', 'cloud']
-env = environments[1]
-use_tiny = False
+env = environments[0]
+use_tiny = True
 
 if env == 'local':
     # Path for local env.
     dir_path = os.path.join(os.path.expanduser("~"), "Dataset/celeba")
     partition_path = os.path.join(dir_path, "list_eval_partition.csv")
     img_dir_path = os.path.join(dir_path, "img_align_celeba")
+    img_url = "~/Dataset/celeba/img_align_celeba/"
     train_flist_path = os.path.join(dir_path, "train.flist")
     valid_flist_path = os.path.join(dir_path, "valid.flist")
 else:
@@ -37,7 +38,7 @@ with open(partition_path, 'r', encoding='UTF-8') as f:
 
 with open(train_flist_path, 'w', encoding='UTF-8') as f:
     if use_tiny:
-        for line in data_lists[0][0:100]:
+        for line in data_lists[0][0:20000]:
             f.write(line + '\n')
     else:
         for line in data_lists[0]:
@@ -45,9 +46,9 @@ with open(train_flist_path, 'w', encoding='UTF-8') as f:
 
 with open(valid_flist_path, 'w', encoding='UTF-8') as f:
     if use_tiny:
-        for line in data_lists[1][0:10]:
+        for line in data_lists[1][0:2000]:
             f.write(line + '\n')
-        for line in data_lists[2][0:10]:
+        for line in data_lists[2][0:2000]:
             f.write(line + '\n')
     else:
         for line in data_lists[1]:

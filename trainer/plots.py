@@ -12,7 +12,7 @@ def plot_reconstruction(dataset, epoch, model, targets, masked_imgs, mask, nex=8
     for axi, (dat, lab) in enumerate(zip([targets, masked_imgs, results[0], alphas[0], raws[0]],
                                          ["targets", "inputs", "results", "alphas", "raws"])):
         for ex in range(nex):
-            tmp = dat[ex].numpy().squeeze() / 255.
+            tmp = dat[ex].numpy().squeeze()
             axs[axi, ex].imshow(tmp, cmap=plt.get_cmap('Greys'), vmin=0, vmax=1)
             axs[axi, ex].axes.get_xaxis().set_ticks([])
             axs[axi, ex].axes.get_yaxis().set_ticks([])
