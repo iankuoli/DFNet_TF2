@@ -10,6 +10,7 @@ from loss import InpaintLoss
 from img_mask import mask_imgs
 from plots import *
 
+
 #
 # Configuration Loading
 # ----------------------------------------------------------------------------------------------------------------------
@@ -25,14 +26,20 @@ config = Config(os.path.join(os.getcwd(), "config_local.yaml"))          # confi
 print("Loading Data from %s ......" % expanduser(config.data.data_flist[config.data.dataset][0]))
 imgs = Dataset(config.batch_size_train, config.batch_size_infer)
 
-if config.data.data_flist[config.data.dataset][0].split(".")[1] == "flist":
-    imgs.load_from_flist(expanduser(config.data.data_flist[config.data.dataset][0]),
-                         expanduser(config.data.data_flist[config.data.dataset][1]),
-                         tuple(config.img_shape[:2]),
-                         is_url=config.is_url)
-elif config.data.data_flist[config.data.dataset][0].split(".")[1] == "mat":
-    imgs.load_mat(expanduser(config.data.data_flist[config.data.dataset][0]),
-                  expanduser(config.data.data_flist[config.data.dataset][1]))
+if len(config.data.data_flist[config.data.dataset][0].split(".")) == 1:
+    imgs.load_from_dir_batch(expanduser(config.data.data_flist[config.data.dataset][0]),
+                             expanduser(config.data.data_flist[config.data.dataset][1]),
+                             tuple(config.img_shape[:2]))
+else:
+    if config.data.data_flist[config.data.dataset][0].split(".")[1] == "flist":
+        imgs.load_from_flist(expanduser(config.data.data_flist[config.data.dataset][0]),
+                             expanduser(config.data.data_flist[config.data.dataset][1]),
+                             tuple(config.img_shape[:2]),
+                             is_url=config.is_url)
+    elif config.data.data_flist[config.data.dataset][0].split(".")[1] == "mat":
+        imgs.load_mat(expanduser(config.data.data_flist[config.data.dataset][0]),
+                      expanduser(config.data.data_flist[config.data.dataset][1]))
+
 print("Data loading is finished.")
 
 
@@ -59,9 +66,18 @@ print("DFNet declaration is finished.")
 #
 # Model Training
 # ----------------------------------------------------------------------------------------------------------------------
+def show_batch(image_batch):
+    plt.figure(figsize=(10, 10))
+    for n in range(config.batch_size_infer):
+        ax = plt.subplot(5, 5, n+1)
+        plt.imshow(image_batch[n])
+        plt.axis('off')
+
 
 # exampled data for plotting results
 example_data = next(iter(imgs.valid_data))
+show_batch(example_data.numpy())
+plt.show()
 
 # a pandas dataframe to save the loss information to
 losses = pd.DataFrame(columns=['loss', 'reconstruction_loss', 'perceptual_loss', 'style_loss', 'total_variation_loss'])

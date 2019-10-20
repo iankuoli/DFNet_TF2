@@ -5,6 +5,7 @@ from scipy.io import loadmat
 import urllib
 import cv2
 import os
+from os.path import expanduser
 
 
 # Convert to float32 and Normalize images value from [0, 255] to [0, 1].
@@ -26,6 +27,43 @@ class Dataset(object):
         self.train_size = 0
         self.valid_size = 0
         self.input_dim = 0
+
+    def load_from_dir_batch(self, train_flist_path, valid_flist_path, output_wh):
+
+        train_list_ds = tf.data.Dataset.list_files(expanduser(os.path.join(train_flist_path, "*")))
+        valid_list_ds = tf.data.Dataset.list_files(expanduser(os.path.join(valid_flist_path, "*")))
+
+        def process_path(file_path):
+            # load the raw data from the file as a string
+            img = tf.io.read_file(file_path)
+            # convert the compressed string to a 3D uint8 tensor
+            img = tf.image.decode_jpeg(img, channels=3)
+            # Use `convert_image_dtype` to convert to floats in the [0,1] range.
+            img = tf.image.convert_image_dtype(img, tf.float32)
+            (w, h) = output_wh
+            return tf.image.resize(img, [w, h])
+
+        def prepare_for_training(ds, cache=True, batch_size=32, shuffle_buffer_size=1000):
+            # This is a small dataset, only load it once, and keep it in memory.
+            # Use `.cache(filename)` to cache preprocessing work for datasets that don't fit in memory.
+            if cache:
+                ds = ds.cache(cache) if isinstance(cache, str) else ds.cache()
+            ds = ds.shuffle(buffer_size=shuffle_buffer_size)
+            # Repeat forever and set batch size
+            ds = ds.repeat().batch(batch_size)
+            # `prefetch` lets the dataset fetch batches in the background while the model is training.
+            return ds.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+
+        train_imgs_ds = train_list_ds.map(process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        valid_imgs_ds = valid_list_ds.map(process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+        train_ds = prepare_for_training(train_imgs_ds, batch_size=self.batch_size_train)
+        valid_ds = prepare_for_training(valid_imgs_ds, batch_size=self.batch_size_infer)
+
+        self.train_data = train_ds
+        self.valid_data = valid_ds
+        self.train_size = len(os.listdir(expanduser(train_flist_path)))
+        self.valid_size = len(os.listdir(expanduser(valid_flist_path)))
 
     def load_from_flist(self, train_flist_path, valid_flist_path, output_wh, is_url=False):
         train_img_list = []

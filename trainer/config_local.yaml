@@ -74,8 +74,8 @@ data:
       'datasets_path/celebahq_train_local.flist']
     # http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html, please to use RANDOM_CROP: True
     celeba: [
-      'datasets_path/celeba_train_local_tiny.flist',
-      'datasets_path/celeba_train_local_tiny.flist']
+      '~/Dataset/celeba/train_imgs',
+      '~/Dataset/celeba/valid_imgs']
     # http://places2.csail.mit.edu/, please download the high-resolution dataset and use RANDOM_CROP: True
     places2: [
       'gs://inpaint-dataset/PlacesData/train_list.txt',
