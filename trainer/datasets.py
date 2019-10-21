@@ -57,8 +57,8 @@ class Dataset(object):
         train_imgs_ds = train_list_ds.map(process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         valid_imgs_ds = valid_list_ds.map(process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-        train_ds = prepare_for_training(train_imgs_ds, batch_size=self.batch_size_train)
-        valid_ds = prepare_for_training(valid_imgs_ds, batch_size=self.batch_size_infer)
+        train_ds = prepare_for_training(train_imgs_ds, cache="tmp/cache_train", batch_size=self.batch_size_train)
+        valid_ds = prepare_for_training(valid_imgs_ds, cache="tmp/cache_valid", batch_size=self.batch_size_infer)
 
         self.train_data = train_ds
         self.valid_data = valid_ds
