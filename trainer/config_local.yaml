@@ -45,10 +45,10 @@ lr_decay_ratio: 0.1
 mask:
   vertical_margin: 0
   horizontal_margin: 0
-  max_vertex: 3
+  max_vertex: 2
   max_angle: 4.0 #pi
-  max_length: 4
-  max_brush_width: 2
+  max_length: 2
+  max_brush_width: 1
 
 loss:
   c_img: 3
@@ -74,8 +74,8 @@ data:
       'datasets_path/celebahq_train_local.flist']
     # http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html, please to use RANDOM_CROP: True
     celeba: [
-      '~/Dataset/celeba/train_imgs',
-      '~/Dataset/celeba/valid_imgs']
+      '~/Dataset/celeba/train_imgs_tiny',
+      '~/Dataset/celeba/valid_imgs_tiny']
     # http://places2.csail.mit.edu/, please download the high-resolution dataset and use RANDOM_CROP: True
     places2: [
       'gs://inpaint-dataset/PlacesData/train_list.txt',
