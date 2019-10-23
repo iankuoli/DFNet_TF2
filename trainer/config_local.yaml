@@ -2,6 +2,8 @@
 img_shape: [32, 32, 3]
 batch_size_train: 3
 batch_size_infer: 10
+check_per_itrs: 2
+plot_per_itrs: 4
 is_url: False
 
 device:

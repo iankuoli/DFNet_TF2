@@ -1,6 +1,5 @@
 import pandas as pd
 from tqdm import tqdm
-import os
 from os.path import expanduser
 
 from configuration import Config
@@ -50,14 +49,7 @@ logger_.info("Data loading is finished.")
 #
 # Create model
 # ----------------------------------------------------------------------------------------------------------------------
-if config.optimizer == 'Adam':
-    optimizer = tf.keras.optimizers.Adam(config.optimizer.args.lr)
-elif config.optimizer == 'Adagrad':
-    optimizer = tf.keras.optimizers.Adagrad(config.optimizer.args.lr)
-elif config.optimizer == 'RMSprop':
-    optimizer = tf.keras.optimizers.RMSprop(config.optimizer.args.lr)
-else:
-    optimizer = tf.keras.optimizers.SGD(config.optimizer.args.lr)
+optimizer = getattr(tf.keras.optimizers, config.optimizer.name)(config.optimizer.args.lr)
 
 # train the model
 model = DFNet(en_ksize=config.model.en_ksize,
@@ -88,9 +80,6 @@ losses = pd.DataFrame(columns=['loss', 'reconstruction_loss', 'perceptual_loss',
 n_epochs = 50
 num_itr_per_batch_train = int(imgs.train_size / config.batch_size_train)
 num_itr_per_batch_valid = int(imgs.valid_size / config.batch_size_infer)
-
-# exampled data for plotting results
-example_data = next(iter(imgs.valid_data))
 
 loss_function = InpaintLoss(structure_layers=config.model.blend_layers, texture_layers=config.loss.texture_layers,
                             w_l1=config.loss.w_l1, w_percep=config.loss.w_percep,
@@ -124,8 +113,7 @@ for epoch in range(n_epochs):
         gradients = compute_gradients(targets, model)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
-        check_per_itrs = 2
-        if batch % check_per_itrs == 0:
+        if batch % config.check_per_itrs == 0:
             # test on holdout
             loss_batch = []
             for batch_i, targets_i in zip(range(num_itr_per_batch_valid), imgs.valid_data):
@@ -143,17 +131,16 @@ for epoch in range(n_epochs):
 
             tmp = np.mean(loss_batch, axis=0)
             result_str = "Epoch: {:d}-{:d} | recon_loss: {:.6f} | perceptual_loss: {:.6f} | style_loss: {:.6f} | " \
-                         "total_variation_loss: {:.6f}".format(epoch, int(batch / check_per_itrs), tmp[1], tmp[2],
+                         "total_variation_loss: {:.6f}".format(epoch, int(batch / config.check_per_itrs), tmp[1], tmp[2],
                                                                tmp[3], tmp[4])
             logger_.info(result_str)
 
-        plot_per_itrs = 4
-        if batch % plot_per_itrs == 0:
+        if batch % config.plot_per_itrs == 0:
             # plot results
             masked_imgs, mask = mask_imgs(example_data, config.img_shape,
                                           config.mask.max_vertex, config.mask.max_angle,
                                           config.mask.max_length, config.mask.max_brush_width)
-            plot_reconstruction(config.data.dataset, str(epoch) + "-" + str(int(batch / plot_per_itrs)), model,
+            plot_reconstruction(config.data.dataset, str(epoch) + "-" + str(int(batch / config.plot_per_itrs)), model,
                                 example_data,
                                 masked_imgs, mask, nex=example_data.shape[0])
 
