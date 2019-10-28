@@ -1,5 +1,4 @@
 from loss import *
-from coord_conv import CoordinateChannel2D
 
 
 def get_norm(name):
@@ -28,6 +27,27 @@ def get_activation(name):
     return activation
 
 
+class Conv2dSame(keras.Model):
+
+    def __init__(self, out_channels, kernel_size, stride):
+        super(Conv2dSame, self).__init__()
+
+        self.conv = keras.layers.Conv2D(filters=out_channels, kernel_size=kernel_size, strides=stride, padding="same")
+
+
+    @staticmethod
+    def conv_same_pad(ksize, stride):
+        if (ksize - stride) % 2 == 0:
+            return (ksize - stride) // 2
+        else:
+            left = (ksize - stride) // 2
+            right = left + 1
+            return left, right
+
+    def call(self, x):
+        return self.conv(x)
+
+
 class ConvTranspose2dSame(keras.Model):
 
     def __init__(self, out_channels, kernel_size, stride):
@@ -50,16 +70,14 @@ class ConvTranspose2dSame(keras.Model):
 
 class UpBlock(keras.Model):
 
-    def __init__(self, mode='nearest', scale=2, channel=None, kernel_size=4, coord_conv=True):
+    def __init__(self, mode='nearest', scale=2, channel=None, kernel_size=4):
         super(UpBlock, self).__init__()
 
         self.mode = mode
-        layers = [CoordinateChannel2D(data_format="channels_last")] if coord_conv else []
         if mode == 'deconv':
-            layers.append(ConvTranspose2dSame(channel, kernel_size, stride=scale))
+            self.up = ConvTranspose2dSame(channel, kernel_size, stride=scale)
         else:
-            layers.append(keras.layers.UpSampling2D(size=scale, interpolation=mode))
-        self.up = keras.Sequential(layers)
+            self.up = keras.layers.UpSampling2D(size=scale, interpolation=mode)
 
     def call(self, x):
         return self.up(x)
@@ -68,14 +86,14 @@ class UpBlock(keras.Model):
 class EncodeBlock(keras.Model):
 
     def __init__(self, in_channels, out_channels, kernel_size, stride,
-                 coord_conv=True, normalization=None, activation=None):
+                 normalization=None, activation=None):
         super(EncodeBlock, self).__init__()
 
         self.c_in = in_channels
         self.c_out = out_channels
 
-        layers = [CoordinateChannel2D(data_format="channels_last")] if coord_conv else []
-        layers.append(keras.layers.Conv2D(filters=self.c_out, kernel_size=kernel_size, strides=stride, padding="same"))
+        layers = [Conv2dSame(self.c_out, kernel_size, stride)]
+
         if normalization:
             layers.append(get_norm(normalization))
         if activation:
@@ -89,8 +107,7 @@ class EncodeBlock(keras.Model):
 class DecodeBlock(keras.Model):
 
     def __init__(self, c_from_up, c_from_down, c_out,
-                 mode='nearest', kernel_size=4, scale=2,
-                 coord_conv=True, normalization='batch', activation='relu'):
+                 mode='nearest', kernel_size=4, scale=2, normalization='batch', activation='relu'):
         super(DecodeBlock, self).__init__()
 
         self.c_from_up = c_from_up
@@ -100,8 +117,8 @@ class DecodeBlock(keras.Model):
 
         self.up = UpBlock(mode, scale, channel=c_from_up, kernel_size=scale)
 
-        layers = [CoordinateChannel2D(data_format="channels_last")] if coord_conv else []
-        layers.append(keras.layers.Conv2D(filters=self.c_out, kernel_size=kernel_size, strides=1, padding="same"))
+        layers = []
+        layers.append(Conv2dSame(self.c_out, kernel_size, stride=1))
         if normalization:
             layers.append(get_norm(normalization))
         if activation:
@@ -123,13 +140,13 @@ class BlendBlock(keras.Model):
         super(BlendBlock, self).__init__()
         c_mid = max(c_in // 2, 32)
         self.blend = keras.Sequential(
-            [keras.layers.Conv2D(filters=c_mid, kernel_size=1, strides=1, padding="same"),
+            [Conv2dSame(c_mid, 1, 1),
              get_norm(norm),
              get_activation(act),
-             keras.layers.Conv2D(filters=c_out, kernel_size=ksize_mid, strides=1, padding="same"),
+             Conv2dSame(c_out, ksize_mid, 1),
              get_norm(norm),
              get_activation(act),
-             keras.layers.Conv2D(filters=c_out, kernel_size=1, strides=1, padding="same"),
+             Conv2dSame(c_out, 1, 1),
              get_activation('sigmoid')])
 
     def call(self, x):
@@ -142,7 +159,7 @@ class FusionBlock(keras.Model):
         super(FusionBlock, self).__init__()
         c_img = 3
         self.map2img = keras.Sequential(
-            [keras.layers.Conv2D(filters=c_img, kernel_size=1, strides=1, padding="same"),
+            [Conv2dSame(c_img, 1, 1),
              get_activation('sigmoid')])
         self.blend = BlendBlock(c_img*2, c_alpha)
 
