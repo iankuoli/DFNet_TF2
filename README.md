@@ -48,18 +48,23 @@ If you find this code useful for your research, please cite:
 git clone https://github.com/iankuoli/DFNet_TF2.git
 cd DFNet/trainer
 ```
-We will proceed to build the pre-trained models.
 + Modify the configuration in ```/trainer/```.
 + You can train this model by issuing 
 ```bash=
 python3 task.py
 ```
+We will proceed to build the pre-trained models.
 
 The sample images inferenced by this implelement is shown as follows.
 
 <p align="center">
   <img width="600" src="https://i.imgur.com/jDKycES.png">
 </p>
+
+## More than the paper
+We believe the position information is critical for image inpainting.
+As a result, we replace the convulution layer by [CoordConv](https://arxiv.org/abs/1807.03247).
+Moreover, we also implement the GAN arichitexture with DFNet as a generator and spectral normalization.
 
 ## Testing
 We have not provided the code for testing or inference.
