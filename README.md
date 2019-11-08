@@ -2,10 +2,7 @@
 
 ## Introduction
 
-Deep image completion usually fails to harmonically blend the restored image into existing content,
-especially in the boundary area. And it often fails to complete complex structures.
-
-We first introduce **Fusion Block** for generating a flexible alpha composition map to combine known and unknown regions.
+DFNet introduce **Fusion Block** for generating a flexible alpha composition map to combine known and unknown regions.
 It builds a bridge for structural and texture information, so that information in known region can be naturally propagated into completion area.
 With this technology, the completion results will have smooth transition near the boundary of completion area.
 
@@ -15,9 +12,9 @@ Multi-scale constrains improves the performance of DFNet a lot on structure cons
 Moreover, **it is easy to apply this fusion block and multi-scale constrains to other existing deep image completion models**.
 A fusion block feed with feature maps and input image, will give you a completion result in the same resolution as given feature maps.
 
-More detail can be found in our [paper](https://arxiv.org/abs/1904.08060)
+More detail can be found in the [paper](https://arxiv.org/abs/1904.08060)
 
-The illustration of a fusion block:
+The illustration of a fusion block in the paper:
 
 <p align="center">
   <img width="600" src="imgs/fusion-block.jpg">
@@ -41,42 +38,33 @@ If you find this code useful for your research, please cite:
 ## Prerequisites
 
 - Python 3
-- PyTorch 1.0
+- TensorFlow 2.0
 - OpenCV
 
-## Testing
-
-Clone this repo:
-
-``` py
-git clone https://github.com/hughplay/DFNet.git
-cd DFNet
-```
-
-Download pre-trained model from [Google Drive](https://drive.google.com/drive/folders/1lKJg__prvJTOdgmg9ZDF9II8B1C3YSkN?usp=sharing)
-and put them into `model`.
-
-### Testing with Places2 model
-
-There are already some sample images in the `samples/places2` folder.
-
-``` sh
-python test.py --model model/model_places2.pth --img samples/places2/img --mask samples/places2/mask --output output/places2 --merge
-```
-
-### Testing with CelebA model
-
-There are already some sample images in the `samples/celeba` folder.
-
-``` sh
-python test.py --model model/model_celeba.pth --img samples/celeba/img --mask samples/celeba/mask --output output/celeba --merge
-```
 
 ## Training
++ Clone this repo:
+``` bash=
+git clone https://github.com/iankuoli/DFNet_TF2.git
+cd DFNet/trainer
+```
+We will proceed to build the pre-trained models.
++ Modify the configuration in ```/trainer/```.
++ You can train this model by issuing 
+```bash=
+python3 task.py
+```
 
-Currently we don't provide training code.
-If you want to train this model on your own dataset, there are some training settings in `config.yaml` may be useful.
-And the loss functions which defined in `loss.py` is available.
+The sample images inferenced by this implelement is shown as follows.
+
+<p align="center">
+  <img width="600" src="https://i.imgur.com/jDKycES.png">
+</p>
+
+## Testing
+We have not provided the code for testing or inference.
+We believe you can do it :)
+
 
 ## License
 
