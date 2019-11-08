@@ -64,7 +64,7 @@ The sample images inferenced by this implelement is shown as follows.
 ## More than the paper
 We believe the position information is critical for image inpainting.
 As a result, we replace the convulution layer by [CoordConv](https://arxiv.org/abs/1807.03247).
-Moreover, we also implement the GAN arichitexture with DFNet as a generator and spectral normalization.
+Moreover, we also implement the GAN arichitexture with DFNet as a generator and [spectral normalization](https://openreview.net/pdf?id=B1QRgziT-).
 
 ## Testing
 We have not provided the code for testing or inference.
