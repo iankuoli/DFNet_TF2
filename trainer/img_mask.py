@@ -27,8 +27,8 @@ def random_ff_mask(img_shape, max_vertex, max_angle, max_length, max_brush_width
                 angle = 0.01 + np.random.randint(max_angle)
                 if i % 2 == 0:
                     angle = 2 * 3.1415926 - angle
-                length = 10 + np.random.randint(max_length)
-                brush_w = 10 + np.random.randint(max_brush_width)
+                length = 3 + np.random.randint(max_length)
+                brush_w = 3 + np.random.randint(max_brush_width)
                 end_x = (start_x + length * np.sin(angle)).astype(np.int32)
                 end_y = (start_y + length * np.cos(angle)).astype(np.int32)
 

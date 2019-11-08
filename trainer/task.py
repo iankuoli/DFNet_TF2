@@ -5,10 +5,13 @@ from os.path import expanduser
 from configuration import Config
 from datasets import Dataset
 from model import DFNet
+from sn_gan import SNGAN, SN_Discriminator
 from loss import InpaintLoss
 from img_mask import mask_imgs
 from plots import *
 from logger import *
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 #
 # Configuration Loading
@@ -52,9 +55,15 @@ logger_.info("Data loading is finished.")
 optimizer = getattr(tf.keras.optimizers, config.optimizer.name)(config.optimizer.args.lr)
 
 # train the model
-model = DFNet(en_ksize=config.model.en_ksize,
-              de_ksize=config.model.de_ksize,
-              fuse_index=config.model.blend_layers)
+if config.model.use_sngan:
+    model = SNGAN(gen=DFNet(en_ksize=config.model.en_ksize,
+                            de_ksize=config.model.de_ksize,
+                            fuse_index=config.model.blend_layers),
+                  dis=SN_Discriminator(c_num=3))
+else:
+    model = DFNet(en_ksize=config.model.en_ksize,
+                  de_ksize=config.model.de_ksize,
+                  fuse_index=config.model.blend_layers)
 logger_.info("DFNet declaration is finished.")
 
 
@@ -75,7 +84,12 @@ show_batch(example_data.numpy())
 plt.show()
 
 # a pandas dataframe to save the loss information to
-losses = pd.DataFrame(columns=['loss', 'reconstruction_loss', 'perceptual_loss', 'style_loss', 'total_variation_loss'])
+if config.model.use_sngan:
+    losses = pd.DataFrame(columns=['loss', 'reconstruction_loss', 'perceptual_loss', 'style_loss',
+                                   'total_variation_loss', 'sn_gan_gen_loss', 'sn_gan_dis_loss'])
+else:
+    losses = pd.DataFrame(columns=['loss', 'reconstruction_loss', 'perceptual_loss', 'style_loss',
+                                   'total_variation_loss'])
 
 n_epochs = 50
 num_itr_per_batch_train = int(imgs.train_size / config.batch_size_train)
@@ -93,14 +107,26 @@ def compute_gradients(targets, model):
 
 
 def compute_loss(targets, batch_size):
-    # image masking
+    # generate masked images
     masked_imgs, mask = mask_imgs(targets, config.img_shape,
                                   config.mask.max_vertex, config.mask.max_angle,
                                   config.mask.max_length, config.mask.max_brush_width)
-
     masks = tf.tile(mask, [batch_size, 1, 1, 1])
-    results, alphas, raws = model(masked_imgs, masks)
+
+    # model inference
+    if config.model.use_sngan:
+        results, alphas, raws, eval_pos, eval_neg = model(targets, masked_imgs, masks)
+    else:
+        results, alphas, raws = model(masked_imgs, masks)
+
+    # compute loss
     loss, loss_list = loss_function(results, targets, masks)
+
+    if config.model.use_sngan:
+        gan_loss = SNGAN.gan_loss(eval_pos, eval_neg)
+        loss += config.model.gan_lambda * gan_loss
+        loss_list['sn_gan_gen_loss'] = gan_loss[0].numpy()
+        loss_list['sn_gan_dis_loss'] = gan_loss[1].numpy()
 
     return loss, loss_list
 
@@ -140,7 +166,10 @@ for epoch in range(n_epochs):
             masked_imgs, mask = mask_imgs(example_data, config.img_shape,
                                           config.mask.max_vertex, config.mask.max_angle,
                                           config.mask.max_length, config.mask.max_brush_width)
-            plot_reconstruction(config.data.dataset, str(epoch) + "-" + str(int(batch / config.plot_per_itrs)), model,
+            plot_reconstruction(config.model.use_sngan,
+                                config.data.dataset,
+                                str(epoch) + "-" + str(int(batch / config.plot_per_itrs)),
+                                model,
                                 example_data,
                                 masked_imgs, mask, nex=example_data.shape[0])
 
@@ -152,25 +181,45 @@ for epoch in range(n_epochs):
     for batch, targets in tqdm(zip(range(num_itr_per_batch_valid), imgs.valid_data), total=num_itr_per_batch_valid):
         loss, loss_list = compute_loss(targets, batch_size=config.batch_size_infer)
 
-        loss_batch.append(np.array([loss,
-                                    loss_list['reconstruction_loss'],
-                                    loss_list['perceptual_loss'],
-                                    loss_list['style_loss'],
-                                    loss_list['total_variation_loss']]))
+        if config.model.use_sngan:
+            loss_batch.append(np.array([loss,
+                                        loss_list['reconstruction_loss'],
+                                        loss_list['perceptual_loss'],
+                                        loss_list['style_loss'],
+                                        loss_list['total_variation_loss'],
+                                        loss_list['sn_gan_gen_loss'],
+                                        loss_list['sn_gan_dis_loss']]))
+        else:
+            loss_batch.append(np.array([loss,
+                                        loss_list['reconstruction_loss'],
+                                        loss_list['perceptual_loss'],
+                                        loss_list['style_loss'],
+                                        loss_list['total_variation_loss']]))
 
     losses.loc[len(losses)] = np.mean(loss_batch, axis=0)
 
     # plot results
-    result_str = "Epoch: {:d} | recon_loss: {:.6f} | perceptual_loss: {:.6f} | style_loss: {:.6f} | " \
-                 "total_variation_loss: {:.6f}".format(epoch, losses.reconstruction_loss.values[-1],
-                                                       losses.perceptual_loss.values[-1], losses.style_loss.values[-1],
-                                                       losses.total_variation_loss.values[-1])
+    if config.model.use_sngan:
+        result_str = "Epoch: {:d} | recon_loss: {:.3f} | perceptual_loss: {:.3f} | style_loss: {:.3f} | " \
+                     "total_variation_loss: {:.3f} | sn_gan_gen_loss: {:.3f} | sn_gan_dis_loss: {:.3f}".\
+            format(epoch, losses.reconstruction_loss.values[-1],
+                   losses.perceptual_loss.values[-1],
+                   losses.style_loss.values[-1],
+                   losses.total_variation_loss.values[-1],
+                   losses.sn_gan_gen_loss.values[-1],
+                   losses.sn_gan_dis_loss.values[-1])
+    else:
+        result_str = "Epoch: {:d} | recon_loss: {:.3f} | perceptual_loss: {:.3f} | style_loss: {:.3f} | " \
+                     "total_variation_loss: {:.3f}".format(epoch, losses.reconstruction_loss.values[-1],
+                                                           losses.perceptual_loss.values[-1],
+                                                           losses.style_loss.values[-1],
+                                                           losses.total_variation_loss.values[-1])
     logger_.info(result_str)
 
     masked_imgs, mask = mask_imgs(example_data, config.img_shape,
                                   config.mask.max_vertex, config.mask.max_angle,
                                   config.mask.max_length, config.mask.max_brush_width)
-    plot_reconstruction(config.data.dataset, str(epoch), model, example_data, masked_imgs, mask,
+    plot_reconstruction(config.model.use_sngan, config.data.dataset, str(epoch), model, example_data, masked_imgs, mask,
                         nex=example_data.shape[0])
 
     # Save the model into ckpt file

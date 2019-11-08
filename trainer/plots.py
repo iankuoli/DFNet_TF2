@@ -3,10 +3,13 @@ import tensorflow as tf
 import numpy as np
 
 
-def plot_reconstruction(dataset, epoch, model, targets, masked_imgs, mask, nex=8, zm=2):
+def plot_reconstruction(use_gan, dataset, epoch, model, targets, masked_imgs, mask, nex=8, zm=2):
 
     masks = tf.tile(mask, [nex, 1, 1, 1])
-    results, alphas, raws = model(masked_imgs, masks)
+    if use_gan:
+        results, alphas, raws, eval_pos, eval_neg = model(targets, masked_imgs, masks)
+    else:
+        results, alphas, raws = model(masked_imgs, masks)
 
     fig, axs = plt.subplots(ncols=nex, nrows=5, figsize=(zm * nex, zm * 4))
     for axi, (dat, lab) in enumerate(zip([targets, masked_imgs, results[0], alphas[0], raws[0]],

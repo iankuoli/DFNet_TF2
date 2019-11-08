@@ -10,6 +10,8 @@ device:
 - {num: 1, gpu: 8, cpu: 16, memory: 51200}
 
 model:
+  use_sngan: True
+  gan_lambda: 1
   save_path: 'ckpt/DFNet_ver1'
   c_img: 3
   c_mask: 1
