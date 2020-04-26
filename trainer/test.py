@@ -109,9 +109,14 @@ class Tester:
             if input_size:
                 img = cv2.resize(img, input_size)
                 mask = cv2.resize(mask, input_size)
-            img = np.ascontiguousarray(img.transpose(2, 0, 1)).astype(np.uint8)
-            mask = np.ascontiguousarray(
-                np.expand_dims(mask, 0)).astype(np.uint8)
+
+            # Channel last: for Tensorflow ----------
+            img = np.ascontiguousarray(img).astype(np.uint8)
+            mask = np.ascontiguousarray(np.expand_dims(mask, -1)).astype(np.uint8)
+
+            # Channel first: for PyTorch ----------
+            # img = np.ascontiguousarray(img.transpose(2, 0, 1)).astype(np.uint8)
+            # mask = np.ascontiguousarray(np.expand_dims(mask, 0)).astype(np.uint8)
 
             pair['img'] = img
             pair['mask'] = mask
@@ -217,7 +222,7 @@ class Tester:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-m', '--model', default='./model/model_places2.pth',
+        '-m', '--model', default='./saved_model/DFNet/1/saved_model.pb',
         help='Select a checkpoint.')
     parser.add_argument(
         '-i', '--input_size', default=0, type=int,
@@ -226,10 +231,10 @@ if __name__ == '__main__':
         '-b', '--batch_size', default=8, type=int,
         help='Batch size for testing.')
     parser.add_argument(
-        '--img', default='./samples/places2/img',
+        '--img', default='../samples/places2/img',
         help='Image or Image folder.')
     parser.add_argument(
-        '--mask', default='./samples/places2/mask',
+        '--mask', default='../samples/places2/mask',
         help='Mask or Mask folder.')
     parser.add_argument('--output', default='./output/places2',
         help='Output dir')
