@@ -21,7 +21,7 @@ REQUIRED_PACKAGES = [
     'google-pasta==0.1.7',
     'grpcio==1.24.0',
     'h5py==2.10.0',
-    'httplib2==0.14.0',
+    'httplib2==0.18.0',
     'idna==2.8',
     'joblib==0.14.0',
     'Keras==2.3.0',
