@@ -50,7 +50,7 @@ REQUIRED_PACKAGES = [
     'scipy==1.3.1',
     'six==1.12.0',
     'tensorboard==2.0.0',
-    'tensorflow==2.0.1',
+    'tensorflow==2.3.1',
     'tensorflow-estimator==2.0.0',
     'termcolor==1.1.0',
     'tfp-nightly==0.9.0.dev20191003',
