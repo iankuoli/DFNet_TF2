@@ -45,7 +45,7 @@ REQUIRED_PACKAGES = [
     'PyYAML==5.1.2',
     'requests==2.22.0',
     'requests-oauthlib==1.2.0',
-    'rsa==4.0',
+    'rsa==4.1',
     'scikit-learn==0.21.3',
     'scipy==1.3.1',
     'six==1.12.0',
