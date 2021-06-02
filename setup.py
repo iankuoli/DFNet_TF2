@@ -56,7 +56,7 @@ REQUIRED_PACKAGES = [
     'tfp-nightly==0.9.0.dev20191003',
     'tqdm==4.36.1',
     'uritemplate==3.0.0',
-    'urllib3==1.25.6',
+    'urllib3==1.26.5',
     'Werkzeug==0.16.0',
     'wrapt==1.11.2'
 ]
