@@ -32,7 +32,7 @@ REQUIRED_PACKAGES = [
     'matplotlib==3.1.1',
     'numpy==1.17.2',
     'oauthlib==3.1.0',
-    'opencv-python==4.1.1.26',
+    'opencv-python==4.2.0.32',
     'opt-einsum==3.1.0',
     'pandas==0.25.1',
     'Pillow==6.2.0',
