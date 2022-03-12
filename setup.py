@@ -35,7 +35,7 @@ REQUIRED_PACKAGES = [
     'opencv-python==4.1.1.26',
     'opt-einsum==3.1.0',
     'pandas==0.25.1',
-    'Pillow==6.2.0',
+    'Pillow==9.0.1',
     'protobuf==3.9.2',
     'pyasn1==0.4.7',
     'pyasn1-modules==0.2.6',
