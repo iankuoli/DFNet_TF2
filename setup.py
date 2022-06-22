@@ -30,7 +30,7 @@ REQUIRED_PACKAGES = [
     'kiwisolver==1.1.0',
     'Markdown==3.1.1',
     'matplotlib==3.1.1',
-    'numpy==1.17.2',
+    'numpy==1.22.0',
     'oauthlib==3.1.0',
     'opencv-python==4.1.1.26',
     'opt-einsum==3.1.0',
