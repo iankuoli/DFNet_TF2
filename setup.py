@@ -36,7 +36,7 @@ REQUIRED_PACKAGES = [
     'opt-einsum==3.1.0',
     'pandas==0.25.1',
     'Pillow==6.2.0',
-    'protobuf==3.9.2',
+    'protobuf==3.18.3',
     'pyasn1==0.4.7',
     'pyasn1-modules==0.2.6',
     'pyparsing==2.4.2',
