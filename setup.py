@@ -23,7 +23,7 @@ REQUIRED_PACKAGES = [
     'h5py==2.10.0',
     'httplib2==0.14.0',
     'idna==2.8',
-    'joblib==0.14.0',
+    'joblib==1.2.0',
     'Keras==2.3.0',
     'Keras-Applications==1.0.8',
     'Keras-Preprocessing==1.1.0',
